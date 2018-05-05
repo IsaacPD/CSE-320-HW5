@@ -1,8 +1,6 @@
 #include <pthread.h>
 #include "includes.h"
 #define uint unsigned int
-#define MAIN "fifo_main"
-#define MEM  "fifo_mem"
 
 typedef struct pt2 {
 	uint address[1024];
@@ -76,7 +74,9 @@ process * findProcess(pthread_t tid, int * index){
 
 void sendMessage(char * message){
 	FILE * mem = fopen(MEM, "w");
-	fputs(message, mem);
+	char m[256] = "fifo_main ";
+	strcat(m, message);
+	fputs(m, mem);
 	fclose(mem);
 }
 
@@ -206,11 +206,13 @@ int main(int argc, char** argv){
 			sprintf(input, "%s %u %s", args[0], phys, args[3]);
 			sendMessage(input);
 			main = fopen(MAIN, "r");
+			while(fgets(input, 256, main) > 0);
 			fclose(main);
 		}
 		else if (strcmp(args[0], "exit") == 0){
 			cleanThreads();
-			sendMessage("exit");
+			sprintf(input, "exit");
+			sendMessage(input);
 			main = fopen(MAIN, "r");
 			fclose(main);
 			exit(0);

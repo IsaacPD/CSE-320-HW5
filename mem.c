@@ -1,6 +1,4 @@
 #include "includes.h"
-#define MAIN "fifo_main"
-#define MEM  "fifo_mem"
 
 int main(){
 	void * memory = calloc(1024, 1);
@@ -10,12 +8,12 @@ int main(){
 	
 	int points[4] = {0, 256, 512, 768};
 
-	char buf[250];
+	char buf[250], source[250];
 	while(1){
 		mem = fopen(MEM, "r");
-		main = fopen(MAIN, "w");
+		fscanf(mem, "%s %s %u %d", source, buf, &address, &write);
+		main = fopen(source, "w");
 		
-		fscanf(mem, "%s %u %d", buf, &address, &write);
 		if (strcmp(buf, "exit") == 0) {
 			free(memory);
 			fclose(mem);
@@ -34,6 +32,7 @@ int main(){
 			fputs(buf, main);
 		} else if (strcmp(buf, "write") == 0){
 			(*(int*)(memory + address)) = write;
+			fputs("Sup man i'm sorry i doubted you\n", main);
 		} else if (strcmp(buf, "request") == 0){
 			i = points[write];
 			if (i < 256 * (write + 1)){
