@@ -6,3 +6,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <string.h>
+#define MAIN "fifo_main"
+#define MEM "fifo_mem"
+#define CACHE "fifo_cache"
