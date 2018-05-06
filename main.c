@@ -21,6 +21,7 @@ typedef struct process {
 
 process threads[4];
 int size = 0;
+char * OUT;
 
 uint cse320_malloc(process * p, uint addr){
 	uint i1, i2;
@@ -51,9 +52,15 @@ uint cse320_malloc(process * p, uint addr){
 uint cse320_virt_to_phys(uint virt, process p){
 	uint t1Index = virt >> 22;
 	uint t2Index = (virt >> 12) & 1023;
-	pt2 table2 = *(p.table1.table2[t1Index]);
-	uint phys = table2.address[t2Index];
-	return phys;
+	pt2 * table2 = p.table1.table2[t1Index];
+	if (table2 == NULL) {
+		errno = EINVAL;
+		return -1;
+	}
+	if (table2->valid[t2Index] == 1)
+		 return table2->address[t2Index];
+	errno = EINVAL;
+	return -1;
 }
 
 void * handler(void * arg){
@@ -73,11 +80,13 @@ process * findProcess(pthread_t tid, int * index){
 }
 
 void sendMessage(char * message){
-	FILE * mem = fopen(MEM, "w");
-	char m[256] = "fifo_main ";
+	FILE * cache = fopen(OUT, "w");
+	char m[256];
+	strcpy(m, MAIN);
+	strcat(m, " ");
 	strcat(m, message);
-	fputs(m, mem);
-	fclose(mem);
+	fputs(m, cache);
+	fclose(cache);
 }
 
 void cleanThreads(){
@@ -93,12 +102,19 @@ void cleanThreads(){
 int main(int argc, char** argv){
 	//Make FIFO
 	umask(0);
-	if (mkfifo(MAIN, 0666) < 0 || mkfifo(MEM, 0666) < 0) {
+	int a = mkfifo(MAIN, 0666);
+	int b = mkfifo(MEM, 0666);
+	int c = mkfifo(CACHE, 0666);
+	if (a < 0 || b < 0 || c < 0) {
 		if (errno != EEXIST){
 			perror("FIFO");
 			exit(0);
 		}
 	}
+	if (argc > 1 && strcmp(argv[1], "part2") == 0)
+		OUT = CACHE;
+	else OUT = MEM;
+
 	FILE * main;
 	
 	uint phys;
@@ -114,6 +130,7 @@ int main(int argc, char** argv){
 	}
 
 	while(1){
+		errno = 0;
 		printf("prompt> ");
 		fgets(input, 256, stdin);
 
@@ -192,21 +209,23 @@ int main(int argc, char** argv){
 			}
 			fclose(main);
 		}
-		else if (strcmp(args[0], "read") == 0){
-			phys = cse320_virt_to_phys(atoi(args[2]), *findProcess(strtoul(args[1], NULL, 10), NULL));
-			sprintf(input, "%s %u", args[0], phys);
-			sendMessage(input);
-			main = fopen(MAIN, "r");
-			while(fgets(input, 256, main) > 0);
-			printf("%s\n", input);
-			fclose(main);
-		}
-		else if (strcmp(args[0], "write") == 0){
-			phys = cse320_virt_to_phys(atoi(args[2]), *findProcess(strtoul(args[1], NULL, 10), NULL));
+		else if (strcmp(args[0], "read") == 0 || strcmp(args[0], "write") == 0){
+			int virt = strtoul(args[2], NULL, 2);
+			p = findProcess(strtoul(args[1], NULL, 10), NULL);
+			if (errno == EINVAL || p == NULL){
+				printf("Invalid input\n");
+				continue;
+			}
+			phys = cse320_virt_to_phys(virt, *p);
+			if (errno == EINVAL){
+				printf("That virtual address is not allocated for process %s\n", args[1]);
+				continue;
+			}
 			sprintf(input, "%s %u %s", args[0], phys, args[3]);
 			sendMessage(input);
 			main = fopen(MAIN, "r");
 			while(fgets(input, 256, main) > 0);
+			printf("%s\n", input);
 			fclose(main);
 		}
 		else if (strcmp(args[0], "exit") == 0){

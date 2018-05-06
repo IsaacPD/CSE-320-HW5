@@ -1,11 +1,12 @@
 #include "includes.h"
 #define GET_TAG(x) x >> 2
-#define GET_SET(x) x & 3
+#define GET_SET(x) GET_TAG(x) & 3
 
 typedef struct block {
 	int valid;
 	int value;
 	int tag;
+	int dirty;
 } block;
 
 block blocks[4];
@@ -20,7 +21,8 @@ void printBlocks(){
 
 int main(){
 	int address, old;
-	int i, write, result, val, tag;
+	int i, write, result, val, tag, bound;
+	int bounds[4] = {256, 512, 768, 1024};
 	FILE * cache, * mem, * main;
 	block* b;
 
@@ -29,36 +31,71 @@ int main(){
 		printBlocks();
 		cache = fopen(CACHE, "r");
 		main = fopen(MAIN, "w");
-		sleep(1);
-		fscanf(cache, "%s %s %u %d", source, command, &address, &write);
+		fscanf(cache, "%s %s %d %d", source, command, &address, &write);
 		fclose(cache);
 
 		if (strcmp(command, "request") == 0) {
 			mem = fopen(MEM, "w");
-			sprintf(buf, "%s %s %u %d", CACHE, command, address, write);
+			sprintf(buf, "%s %s %d %d", CACHE, command, address, write);
 			fputs(buf, mem);
 			fclose(mem);
 
 			cache = fopen(CACHE, "r");
-			fscanf(cache, "%u", &address);
+			fscanf(cache, "%d", &address);
+			fclose(cache);
 			b = &blocks[GET_SET(address)];
+
+			if (b->dirty == 1){
+				mem = fopen(MEM, "w");
+				printf("eviction\n");
+				old = b->tag << 2;
+				sprintf(buf, "%s write %d %d", CACHE, old, b->value);
+				fputs(buf, mem);
+				fclose(mem);
+				cache = fopen(CACHE, "r");
+				fscanf(cache, "%s", buf);
+				fclose(cache);
+			}
+
 			b->value = 0;
 			b->tag = GET_TAG(address);
 			b->valid = 1;
-			sprintf(buf, "%u", address);
+			sprintf(buf, "%d", address);
 			fputs(buf, main);
 			fclose(main);
+			continue;
+		}
+
+		if (strcmp(command, "exit") == 0){
+			mem = fopen(MEM, "w");
+			fputs("fifo_cache exit", mem);
+			fclose(mem);
+			cache = fopen(CACHE, "r");
 			fclose(cache);
+			return 0;
+		}
+
+		if (strcmp(command, "kill") == 0){
+			mem = fopen(MEM, "w");
+			sprintf(buf, "%s %s %d %d", CACHE, command, address, write);
+			fputs(buf, mem);
+			fclose(mem);
+			bound = bounds[write];
+			for (i = 0; i < 4; i++){
+				if ((blocks[i].tag << 2) < bound)
+					blocks[i].valid = 0;
+			}
+			fclose(main);
 			continue;
 		}
 		
 		b =  &blocks[GET_SET(address)];
 		tag = GET_TAG(address);
-		printf("Tag received %d %d", tag, GET_SET(address));
+		printf("Tag received %d %d\n", tag, GET_SET(address));
 
 		if (b->valid == 1){
 	   		if (b->tag == tag) result = 0;
-			result = 2;
+			else result = 2;
 		}
 		else result = 1;
 		
@@ -68,15 +105,18 @@ int main(){
 		} else {
 			printf("cache miss\n");
 			mem = fopen(MEM, "w");
-			if (result == 2){
+			if (b->dirty == 1){
 				printf("eviction\n");
-				old = GET_SET(address) | (b->tag << 2);
-				sprintf(buf, "%s write %u %d", CACHE, old, b->value);
+				old = b->tag << 2;
+				sprintf(buf, "%s write %d %d", CACHE, old, b->value);
 				fputs(buf, mem);
 				fclose(mem);
+				cache = fopen(CACHE, "r");
+				fscanf(cache, "%s", buf);
+				fclose(cache);
 				mem = fopen(MEM, "w");
 			}
- 			sprintf(buf, "%s read %u", CACHE, address);
+ 			sprintf(buf, "%s read %d", CACHE, address);
 			fputs(buf, mem);
 			fclose(mem);
 			cache = fopen(CACHE, "r");
@@ -92,6 +132,8 @@ int main(){
 			fputs(buf, main);
 		} else if (strcmp(command, "write") == 0){
 			b->value = write;
+			b->dirty = 1;
+			fputs("write", main);
 		}
 
 		fclose(main);

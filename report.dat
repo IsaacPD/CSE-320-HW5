@@ -1,0 +1,22 @@
+Welcome :)
+To run the application with only the emulated memory and no cache (part 1) just run
+$ ./main 
+in one terminal and
+$ ./mem
+in another in that order
+
+To run the application with the cache (part 2) run
+$ ./main part2
+in one terminal and then
+$ ./mem
+$ ./cache
+in their own respective terminals in that order
+
+./main supports the following commands
+create - creates a process and prints out the resulting id of the process
+list - lists all the processes "running" with their ids
+mem PROCESS - lists the virtual memory addresses used by PROCESS (decimal integer)
+allocate PROCESS - allocates a virtual address to PROCESS
+write PROCESS VIRTUAL VALUE - Writes VALUE (decimal integer) to VIRTUAL (binary integer >= 0) address of PROCESS (decimal integer)
+kill PROCESS - Kills PROCESS and releases associated memory
+exit - Exits ./main and all associated memory it is using

@@ -32,7 +32,7 @@ int main(){
 			fputs(buf, main);
 		} else if (strcmp(buf, "write") == 0){
 			(*(int*)(memory + address)) = write;
-			fputs("Sup man i'm sorry i doubted you\n", main);
+			fputs("write", main);
 		} else if (strcmp(buf, "request") == 0){
 			i = points[write];
 			if (i < 256 * (write + 1)){
