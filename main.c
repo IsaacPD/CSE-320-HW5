@@ -99,6 +99,21 @@ void cleanThreads(){
 	}
 }
 
+void printBinary(uint addr){
+	int number[32], i;
+	for (i = 0; i < 32; i++) number[i] = 0;
+	i = 31;
+
+	for (addr; addr > 0; addr = addr >> 1){
+		if ((addr & 0x1) == 1){
+			number[i] = 1;
+		}
+		i--;
+	}
+
+	for (i = 0; i < 32; i++) printf("%d", number[i]);
+}
+
 int main(int argc, char** argv){
 	//Make FIFO
 	umask(0);
@@ -186,8 +201,11 @@ int main(int argc, char** argv){
 				continue;
 			}
 			int vsize = p->size;
-			for (i = 0; i < vsize; i++)
-				printf("Virtual Address: 0x%X\n", p->virtuals[i]);
+			for (i = 0; i < vsize; i++){
+				printf("Virtual Address: 0x%X | ", p->virtuals[i]);
+				printBinary(p->virtuals[i]);
+				printf("\n");
+			}
 		}
 		else if (strcmp(args[0], "allocate") == 0){
 			p = findProcess(strtoul(args[1], NULL, 10), &i);
@@ -199,11 +217,13 @@ int main(int argc, char** argv){
 			sendMessage(buff);
 			main = fopen(MAIN, "r");
 			fscanf(main, "%u %s", &phys, buff);
-			if (input[0] == 'E') 
+			if (input[0] == 'E')
 				printf("%s for process\n", buff);
 			else {
 				uint virt = cse320_malloc(p, phys);
-				printf("Virtual address 0x%X or %d created for process %s\n", virt, virt, args[1]);
+				printf("Virtual address 0x%X or ", virt);
+				printBinary(virt);
+				printf(" created for process %s\n", args[1]);
 				p->virtuals[p->size] = virt;
 				p->size++;
 			}
